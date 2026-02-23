@@ -1,73 +1,89 @@
-# React + TypeScript + Vite
+# EVTX Security Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Windowsイベントログ（`.evtx`）をブラウザ上で解析・可視化するツールです。
+バックエンド不要で、EVTXファイルをドロップするだけでセキュリティイベントを確認できます。
 
-Currently, two official plugins are available:
+## 特徴
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **ブラウザのみで完結** — サーバー不要。ファイルはローカルで処理され外部に送信されません
+- **Web Worker による非同期パース** — UIをブロックせずバックグラウンドで解析し、結果をリアルタイムにストリーミング表示
+- **仮想スクロール** — 数万件のイベントでもDOM負荷なく高速に描画
+- **イベントID別タブ** — セキュリティ上重要な14種のイベントIDで即座に絞り込み
+- **ログオン失敗の可視化** — イベント4625についてターゲットユーザー・IPアドレス別の円グラフを表示
 
-## React Compiler
+## 対応イベントID
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| タブ | EventID | 説明 |
+|------|---------|------|
+| ログオン成功 | 4624 | An account was successfully logged on |
+| ログオン失敗 | 4625 | An account failed to log on |
+| ログオフ | 4634 | An account was logged off |
+| 明示的ログオン | 4648 | A logon was attempted using explicit credentials |
+| 特権割り当て | 4672 | Special privileges assigned to new logon |
+| プロセス作成 | 4688 | A new process has been created |
+| タスク作成 | 4698 | A scheduled task was created |
+| アカウント作成 | 4720 | A user account was created |
+| パスワードリセット | 4724 | An attempt was made to reset an account's password |
+| アカウントロック | 4740 | A user account was locked out |
+| 資格情報検証 | 4776 | The computer attempted to validate credentials |
+| サービス追加 | 7045 | A new service was installed in the system |
 
-## Expanding the ESLint configuration
+## 使い方
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 開発サーバー起動
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+ブラウザで `http://localhost:5173` を開き、EVTXファイルをドロップしてください。
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### ビルド
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
+```
+
+`dist/` ディレクトリに静的ファイルが生成されます。任意のWebサーバーやローカルファイルとして提供できます。
+
+## 操作方法
+
+1. EVTXファイルをドロップエリアにドラッグ＆ドロップ（またはクリックして選択）
+2. プログレスバーで解析の進捗を確認（結果はリアルタイムで表示）
+3. タブをクリックしてイベントIDで絞り込み
+4. **ログオン失敗** タブでは、ターゲットユーザー別・IPアドレス別の円グラフを表示
+   - 「グラフを隠す/表示」ボタンでグラフの表示切り替えが可能
+5. 行をクリックするとイベント詳細モーダルを表示（EventData・RAW JSONを確認可能）
+6. 「別のファイルを開く」ボタンで別のEVTXファイルに切り替え
+
+## 技術スタック
+
+| 用途 | ライブラリ |
+|------|-----------|
+| UIフレームワーク | React 19 + TypeScript |
+| ビルドツール | Vite 7 |
+| EVTXパース | [winevtx](https://www.npmjs.com/package/winevtx) |
+| 仮想スクロール | [@tanstack/react-virtual](https://tanstack.com/virtual) |
+| グラフ | [Recharts](https://recharts.org/) |
+| Bufferポリフィル | [buffer](https://www.npmjs.com/package/buffer) |
+
+## ファイル構成
+
+```
+src/
+├── types/events.ts                  # TypeScript型定義
+├── utils/
+│   ├── eventDefinitions.ts          # イベントIDメタデータ・LogonTypeラベル
+│   └── fileDataSource.ts            # File → winevtx DataSource アダプター
+├── workers/
+│   └── evtxParser.worker.ts         # Web Worker：EVTXパース処理
+└── components/
+    ├── FileUpload.tsx                # ドラッグ&ドロップ アップロード
+    ├── ParseProgress.tsx             # プログレスバー
+    ├── EventTabs.tsx                 # タブナビゲーション
+    ├── EventTable.tsx                # 仮想スクロールテーブル
+    ├── EventDetail.tsx               # イベント詳細モーダル
+    ├── FailureChart.tsx              # ログオン失敗グラフ（ユーザー + IP）
+    └── PieChartCard.tsx              # 汎用円グラフカード
 ```
