@@ -1,0 +1,17 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  define: {
+    global: 'globalThis',
+    'process.env': '{}',
+    'process.version': '"v20.0.0"',
+    'process.platform': '"browser"',
+  },
+  optimizeDeps: { include: ['buffer'] },
+  worker: {
+    format: 'es',
+  },
+})
