@@ -20,6 +20,7 @@ export default function App() {
   const [fileName, setFileName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showChart, setShowChart] = useState(true);
+  const [hideSystemUsers, setHideSystemUsers] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const collectedRef = useRef<NormalizedEvent[]>([]);
 
@@ -33,6 +34,7 @@ export default function App() {
     setErrorMsg('');
     setFileName(file.name);
     setShowChart(true);
+    setHideSystemUsers(false);
     setAppState('parsing');
 
     const worker = new Worker(
@@ -78,15 +80,46 @@ export default function App() {
   }
 
   const filteredEvents = useMemo(() => {
-    if (activeTab === 'all') return events;
+    let result = events;
     if (activeTab === 'other') {
       const knownIds = TABS.filter(t => t.eventId !== undefined).map(t => t.eventId!);
-      return events.filter(e => !knownIds.includes(e.eventId));
+      result = result.filter(e => !knownIds.includes(e.eventId));
+    } else if (activeTab !== 'all') {
+      const tab = TABS.find(t => t.id === activeTab);
+      if (tab?.eventId) result = result.filter(e => e.eventId === tab.eventId);
     }
-    const tab = TABS.find(t => t.id === activeTab);
-    if (!tab?.eventId) return events;
-    return events.filter(e => e.eventId === tab.eventId);
-  }, [events, activeTab]);
+    if (hideSystemUsers) result = result.filter(e => !e.isSystemUser);
+    return result;
+  }, [events, activeTab, hideSystemUsers]);
+
+  const systemUserCount = useMemo(
+    () => events.filter(e => e.isSystemUser).length,
+    [events],
+  );
+
+  function renderControls() {
+    return (
+      <>
+        <div className="filter-bar">
+          <label className="filter-checkbox">
+            <input
+              type="checkbox"
+              checked={hideSystemUsers}
+              onChange={e => setHideSystemUsers(e.target.checked)}
+            />
+            システムユーザーを非表示
+            <span className="filter-checkbox__count">({systemUserCount.toLocaleString()} 件)</span>
+          </label>
+          {activeTab === '4625' && (
+            <button className="btn-toggle-table" onClick={() => setShowChart(v => !v)}>
+              {showChart ? '▲ グラフを隠す' : '▼ グラフを表示'}
+            </button>
+          )}
+        </div>
+        {activeTab === '4625' && showChart && <FailureChart events={filteredEvents} />}
+      </>
+    );
+  }
 
   function handleReset() {
     workerRef.current?.terminate();
@@ -128,14 +161,7 @@ export default function App() {
             {events.length > 0 && (
               <div className="app-streaming">
                 <EventTabs activeTab={activeTab} events={events} onTabChange={handleTabChange} />
-                {activeTab === '4625' && (
-                  <div className="table-toolbar">
-                    <button className="btn-toggle-table" onClick={() => setShowChart(v => !v)}>
-                      {showChart ? '▲ グラフを隠す' : '▼ グラフを表示'}
-                    </button>
-                  </div>
-                )}
-                {activeTab === '4625' && showChart && <FailureChart events={filteredEvents} />}
+                {renderControls()}
                 <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={activeTab === '4624' || activeTab === '4625'} />
               </div>
             )}
@@ -148,14 +174,7 @@ export default function App() {
               ✓ {fileName} — {events.length.toLocaleString()} 件読み込み完了
             </div>
             <EventTabs activeTab={activeTab} events={events} onTabChange={handleTabChange} />
-            {activeTab === '4625' && (
-              <div className="table-toolbar">
-                <button className="btn-toggle-table" onClick={() => setShowChart(v => !v)}>
-                  {showChart ? '▲ グラフを隠す' : '▼ グラフを表示'}
-                </button>
-              </div>
-            )}
-            {activeTab === '4625' && showChart && <FailureChart events={filteredEvents} />}
+            {renderControls()}
             <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={activeTab === '4624' || activeTab === '4625'} />
           </>
         )}

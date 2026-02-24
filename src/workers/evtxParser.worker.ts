@@ -2,6 +2,7 @@ import { Buffer } from 'buffer';
 import { parseEvtxFileAsync, getChunksAsync } from 'winevtx';
 import { createFileDataSource } from '../utils/fileDataSource';
 import { getEventDescription } from '../utils/eventDefinitions';
+import { classifyIsSystemUser } from '../utils/sidClassifier';
 import type { NormalizedEvent } from '../types/events';
 
 // Make Buffer available globally (required by winevtx in browser)
@@ -70,6 +71,11 @@ self.onmessage = async (e: MessageEvent) => {
         buildUser(eventData['SubjectUserName'], eventData['SubjectDomainName']) ??
         '';
 
+      // SID-based system user classification
+      // Prefer TargetUserSid (the actual target account), fall back to SubjectUserSid
+      const targetSid = String(eventData['TargetUserSid'] ?? eventData['SubjectUserSid'] ?? '').trim();
+      const isSystemUser = classifyIsSystemUser(targetSid, user);
+
       // LogonType / IpAddress are only present for logon events (4624, 4625)
       const isLogonEvent = eventId === 4624 || eventId === 4625;
       const logonType = isLogonEvent && eventData['LogonType'] != null
@@ -88,6 +94,7 @@ self.onmessage = async (e: MessageEvent) => {
         description: getEventDescription(eventId),
         logonType,
         ipAddress,
+        isSystemUser,
         raw: ev as Record<string, unknown>,
       };
 

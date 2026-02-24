@@ -8,6 +8,7 @@ export interface NormalizedEvent {
   description: string;
   logonType?: number;   // 4624 / 4625 only
   ipAddress?: string;   // 4624 / 4625 only
+  isSystemUser: boolean;
   raw: Record<string, unknown>;
 }
 

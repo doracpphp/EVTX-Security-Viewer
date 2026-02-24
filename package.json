@@ -15,7 +15,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.7.0",
-    "winevtx": "^0.1.1"
+    "winevtx": "^0.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
