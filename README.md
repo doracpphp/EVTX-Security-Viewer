@@ -8,25 +8,28 @@ Windowsイベントログ（`.evtx`）をブラウザ上で解析・可視化す
 - **ブラウザのみで完結** — サーバー不要。ファイルはローカルで処理され外部に送信されません
 - **Web Worker による非同期パース** — UIをブロックせずバックグラウンドで解析し、結果をリアルタイムにストリーミング表示
 - **仮想スクロール** — 数万件のイベントでもDOM負荷なく高速に描画
-- **イベントID別タブ** — セキュリティ上重要な14種のイベントIDで即座に絞り込み
+- **3段階ナビゲーション** — カテゴリ → サブカテゴリ → イベントID の階層で絞り込み（Windows Security Auditingの公式分類に準拠）
 - **ログオン失敗の可視化** — イベント4625についてターゲットユーザー・IPアドレス別の円グラフを表示
+- **日本語 / 英語切り替え** — ナビゲーション・詳細ダイアログのラベルとステータスコードの説明を切り替え可能
+- **イベント詳細の自動変換** — LogonType・FailureReason・Status・SubStatus を人間が読める文字列で表示
 
-## 対応イベントID
+## ナビゲーション構造
 
-| タブ | EventID | 説明 |
-|------|---------|------|
-| ログオン成功 | 4624 | An account was successfully logged on |
-| ログオン失敗 | 4625 | An account failed to log on |
-| ログオフ | 4634 | An account was logged off |
-| 明示的ログオン | 4648 | A logon was attempted using explicit credentials |
-| 特権割り当て | 4672 | Special privileges assigned to new logon |
-| プロセス作成 | 4688 | A new process has been created |
-| タスク作成 | 4698 | A scheduled task was created |
-| アカウント作成 | 4720 | A user account was created |
-| パスワードリセット | 4724 | An attempt was made to reset an account's password |
-| アカウントロック | 4740 | A user account was locked out |
-| 資格情報検証 | 4776 | The computer attempted to validate credentials |
-| サービス追加 | 7045 | A new service was installed in the system |
+Windows Security Auditingの公式カテゴリに従い、3段のタブで絞り込みます。
+
+| カテゴリ | 主なサブカテゴリ例 |
+|---------|-----------------|
+| システム | セキュリティ システムの拡張 / システムの整合性 / IPsec ドライバー |
+| ログオン/ログオフ | ログオン / ログオフ / アカウント ロックアウト / 特殊なログオン |
+| オブジェクト アクセス | ファイル システム / レジストリ / ファイルの共有 / 証明書サービス |
+| 特権の使用 | 重要な特権の使用 / 重要でない特権の使用 |
+| 詳細追跡 | プロセス作成 / プロセス終了 / DPAPI アクティビティ |
+| ポリシーの変更 | ポリシーの変更の監査 / MPSSVC ルールレベル ポリシーの変更 |
+| アカウント管理 | ユーザー アカウント管理 / セキュリティ グループ管理 |
+| DS アクセス | ディレクトリ サービス アクセス / ディレクトリ サービスの変更 |
+| アカウント ログオン | Kerberos サービス チケット操作 / Kerberos 認証サービス |
+| その他 | イベント ログ（1100 / 1102 / 1104 など） |
+
 
 ## 使い方
 
@@ -51,11 +54,12 @@ npm run build
 
 1. EVTXファイルをドロップエリアにドラッグ＆ドロップ（またはクリックして選択）
 2. プログレスバーで解析の進捗を確認（結果はリアルタイムで表示）
-3. タブをクリックしてイベントIDで絞り込み
-4. **ログオン失敗** タブでは、ターゲットユーザー別・IPアドレス別の円グラフを表示
+3. カテゴリタブ → サブカテゴリタブ → イベントIDタブの順に選択して絞り込み
+4. **ログオン失敗**（4625）選択時は、ターゲットユーザー別・IPアドレス別の円グラフを表示
    - 「グラフを隠す/表示」ボタンでグラフの表示切り替えが可能
-5. 行をクリックするとイベント詳細モーダルを表示（EventData・RAW JSONを確認可能）
-6. 「別のファイルを開く」ボタンで別のEVTXファイルに切り替え
+5. 行をクリックするとイベント詳細モーダルを表示（システム情報・イベントデータ・RAW JSONを確認可能）
+6. ヘッダーの **EN / 日本語** ボタンで表示言語を切り替え
+7. 「別のファイルを開く」ボタンで別のEVTXファイルに切り替え
 
 ## 技術スタック
 
@@ -74,16 +78,18 @@ npm run build
 src/
 ├── types/events.ts                  # TypeScript型定義
 ├── utils/
-│   ├── eventDefinitions.ts          # イベントIDメタデータ・LogonTypeラベル
+│   ├── eventDefinitions.ts          # LogonType・FailureReason・Status変換ラベル
+│   ├── securityCategories.ts        # カテゴリ/サブカテゴリ/イベントID定義（日英）
+│   ├── sidClassifier.ts             # SIDベースのシステムユーザー判定
 │   └── fileDataSource.ts            # File → winevtx DataSource アダプター
 ├── workers/
 │   └── evtxParser.worker.ts         # Web Worker：EVTXパース処理
 └── components/
     ├── FileUpload.tsx                # ドラッグ&ドロップ アップロード
     ├── ParseProgress.tsx             # プログレスバー
-    ├── EventTabs.tsx                 # タブナビゲーション
+    ├── SecurityNav.tsx               # 3段階ナビゲーション（カテゴリ/サブカテゴリ/イベントID）
     ├── EventTable.tsx                # 仮想スクロールテーブル
-    ├── EventDetail.tsx               # イベント詳細モーダル
+    ├── EventDetail.tsx               # イベント詳細モーダル（フィールド自動変換付き）
     ├── FailureChart.tsx              # ログオン失敗グラフ（ユーザー + IP）
     └── PieChartCard.tsx              # 汎用円グラフカード
 ```
