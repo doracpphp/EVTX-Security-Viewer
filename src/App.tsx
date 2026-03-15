@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ParseProgress } from './components/ParseProgress';
-import { EventTabs } from './components/EventTabs';
+import { SecurityNav } from './components/SecurityNav';
 import { EventTable } from './components/EventTable';
 import { EventDetail } from './components/EventDetail';
 import { FailureChart } from './components/FailureChart';
-import { TABS } from './utils/eventDefinitions';
-import type { NormalizedEvent, TabId, WorkerResponse } from './types/events';
+import { getCategoryEventIds, getSubcategoryEventIds } from './utils/securityCategories';
+import type { NormalizedEvent, WorkerResponse } from './types/events';
 import './App.css';
 
 type AppState = 'idle' | 'parsing' | 'done' | 'error';
@@ -14,13 +14,16 @@ type AppState = 'idle' | 'parsing' | 'done' | 'error';
 export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
-  const [activeTab, setActiveTab] = useState<TabId>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<NormalizedEvent | null>(null);
   const [progress, setProgress] = useState({ processed: 0, total: 0 });
   const [fileName, setFileName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showChart, setShowChart] = useState(true);
   const [hideSystemUsers, setHideSystemUsers] = useState(false);
+  const [lang, setLang] = useState<'ja' | 'en'>('ja');
   const workerRef = useRef<Worker | null>(null);
   const collectedRef = useRef<NormalizedEvent[]>([]);
 
@@ -29,7 +32,9 @@ export default function App() {
     collectedRef.current = [];
     setEvents([]);
     setProgress({ processed: 0, total: 0 });
-    setActiveTab('all');
+    setSelectedCategory('all');
+    setSelectedSubcategory(null);
+    setSelectedEventId(null);
     setSelectedEvent(null);
     setErrorMsg('');
     setFileName(file.name);
@@ -74,28 +79,46 @@ export default function App() {
     worker.postMessage({ type: 'parse', file });
   }, []);
 
-  function handleTabChange(id: TabId) {
-    setActiveTab(id);
-    setShowChart(true);
-  }
-
   const filteredEvents = useMemo(() => {
     let result = events;
-    if (activeTab === 'other') {
-      const knownIds = TABS.filter(t => t.eventId !== undefined).map(t => t.eventId!);
-      result = result.filter(e => !knownIds.includes(e.eventId));
-    } else if (activeTab !== 'all') {
-      const tab = TABS.find(t => t.id === activeTab);
-      if (tab?.eventId) result = result.filter(e => e.eventId === tab.eventId);
+    if (selectedEventId !== null) {
+      result = result.filter(e => e.eventId === selectedEventId);
+    } else if (selectedSubcategory !== null) {
+      const ids = getSubcategoryEventIds(selectedCategory, selectedSubcategory);
+      result = result.filter(e => ids.has(e.eventId));
+    } else if (selectedCategory !== 'all') {
+      const ids = getCategoryEventIds(selectedCategory);
+      result = result.filter(e => ids.has(e.eventId));
     }
     if (hideSystemUsers) result = result.filter(e => !e.isSystemUser);
     return result;
-  }, [events, activeTab, hideSystemUsers]);
+  }, [events, selectedCategory, selectedSubcategory, selectedEventId, hideSystemUsers]);
 
   const systemUserCount = useMemo(
     () => events.filter(e => e.isSystemUser).length,
     [events],
   );
+
+  const showLogonCols = selectedEventId === 4624 || selectedEventId === 4625;
+  const showFailureChart = selectedEventId === 4625;
+
+  function handleCategoryChange(category: string) {
+    setSelectedCategory(category);
+    setSelectedSubcategory(null);
+    setSelectedEventId(null);
+    setShowChart(true);
+  }
+
+  function handleSubcategoryChange(subcategory: string | null) {
+    setSelectedSubcategory(subcategory);
+    setSelectedEventId(null);
+    setShowChart(true);
+  }
+
+  function handleEventIdChange(eventId: number | null) {
+    setSelectedEventId(eventId);
+    setShowChart(true);
+  }
 
   function renderControls() {
     return (
@@ -110,13 +133,13 @@ export default function App() {
             システムユーザーを非表示
             <span className="filter-checkbox__count">({systemUserCount.toLocaleString()} 件)</span>
           </label>
-          {activeTab === '4625' && (
+          {showFailureChart && (
             <button className="btn-toggle-table" onClick={() => setShowChart(v => !v)}>
               {showChart ? '▲ グラフを隠す' : '▼ グラフを表示'}
             </button>
           )}
         </div>
-        {activeTab === '4625' && showChart && <FailureChart events={filteredEvents} />}
+        {showFailureChart && showChart && <FailureChart events={filteredEvents} />}
       </>
     );
   }
@@ -132,15 +155,31 @@ export default function App() {
     setSelectedEvent(null);
   }
 
+  const navProps = {
+    events,
+    selectedCategory,
+    selectedSubcategory,
+    selectedEventId,
+    onCategoryChange: handleCategoryChange,
+    onSubcategoryChange: handleSubcategoryChange,
+    onEventIdChange: handleEventIdChange,
+    lang,
+  };
+
   return (
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">EVTX Security Viewer</h1>
-        {appState !== 'idle' && (
-          <button className="btn-reset" onClick={handleReset}>
-            別のファイルを開く
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="btn-lang" onClick={() => setLang(l => l === 'ja' ? 'en' : 'ja')}>
+            {lang === 'ja' ? 'EN' : '日本語'}
           </button>
-        )}
+          {appState !== 'idle' && (
+            <button className="btn-reset" onClick={handleReset}>
+              別のファイルを開く
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="app-main">
@@ -160,9 +199,9 @@ export default function App() {
             />
             {events.length > 0 && (
               <div className="app-streaming">
-                <EventTabs activeTab={activeTab} events={events} onTabChange={handleTabChange} />
+                <SecurityNav {...navProps} />
                 {renderControls()}
-                <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={activeTab === '4624' || activeTab === '4625'} />
+                <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={showLogonCols} />
               </div>
             )}
           </>
@@ -173,9 +212,9 @@ export default function App() {
             <div className="app-done-banner">
               ✓ {fileName} — {events.length.toLocaleString()} 件読み込み完了
             </div>
-            <EventTabs activeTab={activeTab} events={events} onTabChange={handleTabChange} />
+            <SecurityNav {...navProps} />
             {renderControls()}
-            <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={activeTab === '4624' || activeTab === '4625'} />
+            <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={showLogonCols} />
           </>
         )}
 
@@ -189,7 +228,7 @@ export default function App() {
       </main>
 
       {selectedEvent && (
-        <EventDetail event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+        <EventDetail event={selectedEvent} onClose={() => setSelectedEvent(null)} lang={lang} />
       )}
     </div>
   );

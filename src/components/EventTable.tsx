@@ -14,6 +14,7 @@ interface Props {
 export function EventTable({ events, onRowClick, showLogonCols = false }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: events.length,
     getScrollElement: () => parentRef.current,

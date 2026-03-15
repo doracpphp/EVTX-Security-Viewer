@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { PieChartCard, buildEntries } from './PieChartCard';
+import { PieChartCard } from './PieChartCard';
+import { buildEntries } from '../utils/chartUtils';
 import type { NormalizedEvent } from '../types/events';
 
 interface Props {
