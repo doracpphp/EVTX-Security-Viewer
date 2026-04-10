@@ -126,6 +126,8 @@ self.onmessage = async (e: MessageEvent) => {
     self.postMessage({ type: 'progress', processed: totalChunks, total: totalChunks });
     self.postMessage({ type: 'done' });
   } catch (err) {
-    self.postMessage({ type: 'error', message: String(err) });
+    // Only expose the message, not the full stack trace
+    const message = err instanceof Error ? err.message : 'EVTXファイルの解析中にエラーが発生しました。';
+    self.postMessage({ type: 'error', message });
   }
 };

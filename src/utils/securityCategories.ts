@@ -1,6 +1,7 @@
 export interface SecurityEventDef {
   id: number;
   desc: string;
+  label?: string;  // Japanese short label
 }
 
 export interface SecuritySubcategory {
@@ -26,6 +27,7 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
         { id: 4614, desc: 'A notification package has been loaded by the SAM' },
         { id: 4622, desc: 'A security package has been loaded by the LSA' },
         { id: 4697, desc: 'A service was installed in the system' },
+        { id: 7045, desc: 'A new service was installed in the system', label: 'サービス追加' },
       ]},
       { name: 'システムの整合性', nameEn: 'System Integrity', events: [
         { id: 4612, desc: 'Internal resources allocated for audit messages have been exhausted' },
@@ -91,17 +93,17 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
     nameEn: 'Logon/Logoff',
     subcategories: [
       { name: 'ログオン', nameEn: 'Logon', events: [
-        { id: 4624, desc: 'An account was successfully logged on' },
-        { id: 4625, desc: 'An account failed to log on' },
-        { id: 4648, desc: 'A logon was attempted using explicit credentials' },
+        { id: 4624, desc: 'An account was successfully logged on', label: 'ログオン成功' },
+        { id: 4625, desc: 'An account failed to log on', label: 'ログオン失敗' },
+        { id: 4648, desc: 'A logon was attempted using explicit credentials', label: '明示的ログオン' },
         { id: 4675, desc: 'SIDs were filtered' },
       ]},
       { name: 'ログオフ', nameEn: 'Logoff', events: [
-        { id: 4634, desc: 'An account was logged off' },
+        { id: 4634, desc: 'An account was logged off', label: 'ログオフ' },
         { id: 4647, desc: 'User initiated logoff' },
       ]},
       { name: 'アカウント ロックアウト', nameEn: 'Account Lockout', events: [
-        { id: 4625, desc: 'An account failed to log on' },
+        { id: 4625, desc: 'An account failed to log on', label: 'ログオン失敗' },
       ]},
       { name: 'IPsec メイン モード', nameEn: 'IPsec Main Mode', events: [
         { id: 4650, desc: 'An IPsec Main Mode security association was established' },
@@ -129,7 +131,7 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
       ]},
       { name: '特殊なログオン', nameEn: 'Special Logon', events: [
         { id: 4964, desc: 'Special groups have been assigned to a new logon' },
-        { id: 4672, desc: 'Special privileges assigned to new logon' },
+        { id: 4672, desc: 'Special privileges assigned to new logon', label: '特権割り当て' },
       ]},
       { name: 'その他のログオン/ログオフ イベント', nameEn: 'Other Logon/Logoff Events', events: [
         { id: 4649, desc: 'A replay attack was detected' },
@@ -262,7 +264,7 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
       { name: 'その他のオブジェクト アクセス イベント', nameEn: 'Other Object Access Events', events: [
         { id: 4671, desc: 'An application attempted to access a blocked ordinal through the TBS' },
         { id: 4691, desc: 'Indirect access to an object was requested' },
-        { id: 4698, desc: 'A scheduled task was created' },
+        { id: 4698, desc: 'A scheduled task was created', label: 'タスク作成' },
         { id: 4699, desc: 'A scheduled task was deleted' },
         { id: 4700, desc: 'A scheduled task was enabled' },
         { id: 4701, desc: 'A scheduled task was disabled' },
@@ -310,7 +312,7 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
     nameEn: 'Detailed Tracking',
     subcategories: [
       { name: 'プロセス作成', nameEn: 'Process Creation', events: [
-        { id: 4688, desc: 'A new process has been created' },
+        { id: 4688, desc: 'A new process has been created', label: 'プロセス作成' },
         { id: 4696, desc: 'A primary token was assigned to process' },
       ]},
       { name: 'プロセス終了', nameEn: 'Process Termination', events: [
@@ -460,14 +462,14 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
     nameEn: 'Account Management',
     subcategories: [
       { name: 'ユーザー アカウント管理', nameEn: 'User Account Management', events: [
-        { id: 4720, desc: 'A user account was created' },
+        { id: 4720, desc: 'A user account was created', label: 'アカウント作成' },
         { id: 4722, desc: 'A user account was enabled' },
         { id: 4723, desc: "An attempt was made to change an account's password" },
-        { id: 4724, desc: "An attempt was made to reset an account's password" },
+        { id: 4724, desc: "An attempt was made to reset an account's password", label: 'パスワードリセット' },
         { id: 4725, desc: 'A user account was disabled' },
         { id: 4726, desc: 'A user account was deleted' },
         { id: 4738, desc: 'A user account was changed' },
-        { id: 4740, desc: 'A user account was locked out' },
+        { id: 4740, desc: 'A user account was locked out', label: 'アカウントロック' },
         { id: 4765, desc: 'SID History was added to an account' },
         { id: 4766, desc: 'An attempt to add SID History to an account failed' },
         { id: 4767, desc: 'A user account was unlocked' },
@@ -573,7 +575,7 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
         { id: 4772, desc: 'A Kerberos authentication ticket request failed' },
       ]},
       { name: 'その他のアカウント ログオン イベント', nameEn: 'Other Account Logon Events', events: [
-        { id: 4776, desc: 'The computer attempted to validate the credentials for an account' },
+        { id: 4776, desc: 'The computer attempted to validate the credentials for an account', label: '資格情報検証' },
         { id: 4777, desc: 'The domain controller failed to validate the credentials for an account' },
       ]},
     ],
@@ -593,32 +595,183 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
   },
 ];
 
-// Build a flat set of all known event IDs for "other" category filtering
-export const ALL_KNOWN_EVENT_IDS = new Set<number>(
-  SECURITY_CATEGORIES.flatMap(c => c.subcategories.flatMap(s => s.events.map(e => e.id)))
-);
+// --- Pre-computed lookup caches (built once at module load) ---
 
-// Get unique event IDs for a subcategory (deduplicated)
+export const ALL_KNOWN_EVENT_IDS = new Set<number>();
+
+// categoryName → Set<eventId>
+const CATEGORY_EVENT_IDS = new Map<string, Set<number>>();
+// "categoryName/subcategoryName" → Set<eventId>
+const SUBCATEGORY_EVENT_IDS = new Map<string, Set<number>>();
+// "categoryName/subcategoryName" → deduplicated SecurityEventDef[]
+const SUBCATEGORY_EVENTS = new Map<string, SecurityEventDef[]>();
+// eventId → label
+const EVENT_LABEL_MAP = new Map<number, string>();
+// eventId → English desc (first occurrence wins)
+const EVENT_DESC_MAP = new Map<number, string>();
+
+for (const cat of SECURITY_CATEGORIES) {
+  const catIds = new Set<number>();
+  for (const sub of cat.subcategories) {
+    const subKey = `${cat.name}/${sub.name}`;
+    const subIds = new Set<number>();
+    const subEvts: SecurityEventDef[] = [];
+    for (const evt of sub.events) {
+      catIds.add(evt.id);
+      ALL_KNOWN_EVENT_IDS.add(evt.id);
+      if (!subIds.has(evt.id)) {
+        subIds.add(evt.id);
+        subEvts.push(evt);
+      }
+      if (evt.label && !EVENT_LABEL_MAP.has(evt.id)) EVENT_LABEL_MAP.set(evt.id, evt.label);
+      if (!EVENT_DESC_MAP.has(evt.id)) EVENT_DESC_MAP.set(evt.id, evt.desc);
+    }
+    SUBCATEGORY_EVENT_IDS.set(subKey, subIds);
+    SUBCATEGORY_EVENTS.set(subKey, subEvts);
+  }
+  CATEGORY_EVENT_IDS.set(cat.name, catIds);
+}
+
 export function getSubcategoryEventIds(categoryName: string, subcategoryName: string): Set<number> {
-  const cat = SECURITY_CATEGORIES.find(c => c.name === categoryName);
-  const sub = cat?.subcategories.find(s => s.name === subcategoryName);
-  return new Set(sub?.events.map(e => e.id) ?? []);
+  return SUBCATEGORY_EVENT_IDS.get(`${categoryName}/${subcategoryName}`) ?? new Set();
 }
 
-// Get unique event IDs for a category (deduplicated)
 export function getCategoryEventIds(categoryName: string): Set<number> {
-  const cat = SECURITY_CATEGORIES.find(c => c.name === categoryName);
-  return new Set(cat?.subcategories.flatMap(s => s.events.map(e => e.id)) ?? []);
+  return CATEGORY_EVENT_IDS.get(categoryName) ?? new Set();
 }
 
-// Get unique event defs for a subcategory (deduplicated by ID)
+export function getEventLabel(eventId: number): string | null {
+  return EVENT_LABEL_MAP.get(eventId) ?? null;
+}
+
+// Japanese descriptions sourced from mokuji.md
+const EVENT_DESCS_JA: Record<number, string> = {
+  // システム — セキュリティ システムの拡張
+  4610: 'ローカル セキュリティ機関によって、認証パッケージが読み込まれました。',
+  4611: '信頼されたログオン プロセスがローカル セキュリティ機関に登録されています。',
+  4614: '通知パッケージがセキュリティ アカウント マネージャーにより読み込まれています。',
+  4622: 'セキュリティ パッケージがローカル セキュリティ機関によって読み込まれました。',
+  4697: 'サービスがシステムにインストールされました。',
+  7045: '新しいサービスがシステムにインストールされました。',
+  // システム — セキュリティ状態の変更
+  4608: 'Windows を起動しています。',
+  4616: 'システム時刻が変更されました。',
+  // システム — その他のシステム イベント
+  5024: 'Windows ファイアウォール サービスが正常に開始されました。',
+  5033: 'Windows ファイアウォール ドライバーが正常に開始しました。',
+  5058: 'キー ファイルの操作。',
+  5059: 'キーの移行操作。',
+  5379: '資格情報マネージャーの資格情報が読み取られました。',
+  // ログオン/ログオフ — ログオン
+  4624: 'アカウントが正常にログオンしました。',
+  4625: 'アカウントがログオンに失敗しました。',
+  4648: '明示的な資格情報を使用してログオンが試行されました。',
+  // ログオン/ログオフ — ログオフ
+  4634: 'アカウントがログオフしました。',
+  4647: 'ユーザー開始のログオフ。',
+  // ログオン/ログオフ — 特殊なログオン
+  4964: '特殊グループが新しいログオンに割り当てられました。',
+  4672: '新しいログオンに特権が割り当てられました。',
+  // ログオン/ログオフ — その他
+  4778: 'セッションは Window Station に再接続しました。',
+  4779: 'セッションは Window Station から切断されました。',
+  4800: 'ワークステーションがロックされました。',
+  4801: 'ワークステーションのロックが解除されました。',
+  4802: 'スクリーン セーバーが起動しました。',
+  4803: 'スクリーン セーバーが解除されました。',
+  4627: 'グループ メンバーシップ情報。',
+  // オブジェクト アクセス — ファイル システム/レジストリ/カーネル/SAM
+  4656: 'オブジェクトに対するハンドルが要求されました。',
+  4658: 'オブジェクトに対するハンドルが閉じました。',
+  4660: 'オブジェクトが削除されました。',
+  4661: 'オブジェクトに対するハンドルが要求されました。',
+  4663: 'オブジェクトへのアクセスが試行されました。',
+  4664: 'ハードリンクの作成が試行されました。',
+  4670: 'オブジェクトのアクセス許可が変更されました。',
+  4657: 'レジストリ値が変更されました。',
+  4985: 'トランザクションの状態が変更されました。',
+  // オブジェクト アクセス — 証明書サービス
+  4868: '証明書マネージャーは保留中の証明書要求を拒否しました。',
+  4869: '証明書サービスは再送信された証明書の要求を受信しました。',
+  4870: '証明書サービスは証明書を失効化しました。',
+  4871: '証明書サービスは、証明書失効リスト (CRL) を公開する要求を受信しました。',
+  4872: '証明書サービスは証明書失効リスト (CRL) を公開しました。',
+  4876: '証明書サービスのバックアップが開始されました。',
+  4877: '証明書サービスのバックアップを完了しました。',
+  4878: '証明書サービスの復元が開始されました。',
+  4879: '証明書サービスの復元を完了しました。',
+  4880: '証明書サービスは開始されました。',
+  4881: '証明書サービスは停止されました。',
+  4882: '証明書サービスのセキュリティのアクセス許可が変更されました。',
+  4886: '証明書サービスは証明書の要求を受信しました。',
+  4887: '証明書サービスは証明書の要求を許可し、証明書を発行しました。',
+  4888: '証明書サービスは証明書の要求を拒否しました。',
+  4889: '証明書サービスは証明書の要求の状態を保留に設定しました。',
+  4890: '証明書サービスの証明書マネージャーの設定が変更されました。',
+  4891: '証明書サービスの構成エントリが変更されました。',
+  4892: '証明書サービスのプロパティが変更されました。',
+  4897: '役割の分離を有効。',
+  4898: '証明書サービスがテンプレートを読み込みました。',
+  // オブジェクト アクセス — ハンドル操作/ファイルの共有
+  4690: 'オブジェクトに対するハンドルの複製が試行されました。',
+  5140: 'ネットワーク共有オブジェクトにアクセスしました。',
+  5142: 'ネットワーク共有オブジェクトが追加されました。',
+  5143: 'ネットワーク共有オブジェクトが変更されました。',
+  5144: 'ネットワーク共有オブジェクトが削除されました。',
+  // 特権の使用
+  4673: '特権のあるサービスが呼び出されました。',
+  4674: '特権のあるオブジェクトで操作が試行されました。',
+  // 詳細追跡
+  4688: '新しいプロセスが作成されました。',
+  4689: 'プロセスが終了しました。',
+  4696: 'プライマリ トークンがプロセスに割り当てられました。',
+  4694: '監査可能な保護データの保護が試行されました。',
+  4695: '監査可能な保護データの保護解除が試行されました。',
+  4703: 'ユーザー権限が調整されました。',
+  6416: '新しい外部デバイスがシステムに認識されました。',
+  6419: 'デバイスを無効にするよう要求されました。',
+  6420: 'デバイスが無効になりました。',
+  6421: 'デバイスを有効にするよう要求されました。',
+  6422: 'デバイスが有効になりました。',
+  6423: 'このデバイスのインストールはシステム ポリシーで許可されていません。',
+  // アカウント管理
+  4720: 'ユーザー アカウントが作成されました。',
+  4722: 'ユーザー アカウントが有効化されました。',
+  4723: 'アカウントのパスワードを変更しようとしました。',
+  4724: 'アカウントのパスワードをリセットしようとしました。',
+  4725: 'ユーザー アカウントが無効化されました。',
+  4726: 'ユーザー アカウントが削除されました。',
+  4738: 'ユーザー アカウントが変更されました。',
+  4740: 'ユーザー アカウントがロックアウトされました。',
+  4767: 'ユーザー アカウントのロックが解除されました。',
+  4781: 'アカウントの名前が変更されました。',
+  4741: 'コンピューター アカウントが作成されました。',
+  4742: 'コンピューター アカウントが変更されました。',
+  4743: 'コンピューター アカウントが削除されました。',
+  4731: 'セキュリティが有効なローカル グループが作成されました。',
+  4732: 'セキュリティが有効なローカル グループにメンバーが追加されました。',
+  4733: 'セキュリティが有効なローカル グループからメンバーが削除されました。',
+  4734: 'セキュリティが有効なローカル グループが削除されました。',
+  4735: 'セキュリティが有効なローカル グループが変更されました。',
+  // アカウント ログオン
+  4776: '資格情報の検証が試行されました。',
+  4768: 'Kerberos 認証チケット (TGT) が要求されました。',
+  4769: 'Kerberos サービス チケットが要求されました。',
+  4771: 'Kerberos 事前認証に失敗しました。',
+  // その他 — イベント ログ
+  1100: 'イベントログ サービスがシャットダウンしました。',
+  1102: '監査ログが削除されました。',
+  1104: 'セキュリティ ログがいっぱいです。',
+  1105: 'イベント ログの自動バックアップ。',
+};
+
+// Look up the description for an event ID (falls back to English if no Japanese)
+export function getEventDesc(eventId: number, lang: 'ja' | 'en' = 'en'): string | null {
+  if (lang === 'ja') return EVENT_DESCS_JA[eventId] ?? EVENT_DESC_MAP.get(eventId) ?? null;
+  return EVENT_DESC_MAP.get(eventId) ?? null;
+}
+
+// Get unique event defs for a subcategory (deduplicated, pre-computed)
 export function getUniqueSubcategoryEvents(categoryName: string, subcategoryName: string): SecurityEventDef[] {
-  const cat = SECURITY_CATEGORIES.find(c => c.name === categoryName);
-  const sub = cat?.subcategories.find(s => s.name === subcategoryName);
-  const seen = new Set<number>();
-  return (sub?.events ?? []).filter(e => {
-    if (seen.has(e.id)) return false;
-    seen.add(e.id);
-    return true;
-  });
+  return SUBCATEGORY_EVENTS.get(`${categoryName}/${subcategoryName}`) ?? [];
 }

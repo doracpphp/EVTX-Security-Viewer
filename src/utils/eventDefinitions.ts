@@ -1,31 +1,81 @@
-import type { TabDefinition } from '../types/events';
+import { getEventDesc } from './securityCategories';
 
-export const TABS: TabDefinition[] = [
-  { id: 'all',   label: 'すべて',       description: '全イベント' },
-  { id: '4624',  label: 'ログオン成功',  eventId: 4624, description: 'An account was successfully logged on' },
-  { id: '4625',  label: 'ログオン失敗',  eventId: 4625, description: 'An account failed to log on' },
-  { id: '4634',  label: 'ログオフ',      eventId: 4634, description: 'An account was logged off' },
-  { id: '4648',  label: '明示的ログオン', eventId: 4648, description: 'A logon was attempted using explicit credentials' },
-  { id: '4672',  label: '特権割り当て',  eventId: 4672, description: 'Special privileges assigned to new logon' },
-  { id: '4688',  label: 'プロセス作成',  eventId: 4688, description: 'A new process has been created' },
-  { id: '4698',  label: 'タスク作成',    eventId: 4698, description: 'A scheduled task was created' },
-  { id: '4720',  label: 'アカウント作成', eventId: 4720, description: 'A user account was created' },
-  { id: '4724',  label: 'パスワードリセット', eventId: 4724, description: "An attempt was made to reset an account's password" },
-  { id: '4740',  label: 'アカウントロック', eventId: 4740, description: 'A user account was locked out' },
-  { id: '4776',  label: '資格情報検証',  eventId: 4776, description: 'The computer attempted to validate credentials' },
-  { id: '7045',  label: 'サービス追加',  eventId: 7045, description: 'A new service was installed in the system' },
-  { id: 'other', label: 'その他',        description: '上記以外のイベント' },
-];
+// Extended event descriptions for events that often have no EventData
+// Used in EventDetail when EventData is empty
+interface EventInfo { en: string; ja: string; }
 
-const KNOWN_EVENT_IDS = new Set([4624, 4625, 4634, 4648, 4672, 4688, 4698, 4720, 4724, 4740, 4776, 7045]);
+const EVENT_INFO: Record<number, EventInfo> = {
+  // System
+  4608: {
+    en: 'Windows is starting up. This event is logged when LSASS.EXE starts and the auditing subsystem is initialized. It typically generates during operating system startup.',
+    ja: 'Windowsが起動しています。このイベントはLSASS.EXEの起動と監査サブシステムの初期化時に記録されます。通常、OSの起動プロセス中に生成されます。',
+  },
+  4616: {
+    en: 'The system time was changed.',
+    ja: 'システム時刻が変更されました。',
+  },
+  4621: {
+    en: 'Administrator recovered system from CrashOnAuditFail.',
+    ja: '管理者がCrashOnAuditFailからシステムを回復しました。',
+  },
+  // Logon/Logoff
+  4634: {
+    en: 'An account was logged off.',
+    ja: 'アカウントがログオフしました。',
+  },
+  4647: {
+    en: 'User initiated logoff.',
+    ja: 'ユーザーがログオフを開始しました。',
+  },
+  4672: {
+    en: 'Special privileges were assigned to a new logon.',
+    ja: '新しいログオンに特殊な特権が割り当てられました。',
+  },
+  4800: {
+    en: 'The workstation was locked.',
+    ja: 'ワークステーションがロックされました。',
+  },
+  4801: {
+    en: 'The workstation was unlocked.',
+    ja: 'ワークステーションのロックが解除されました。',
+  },
+  4802: {
+    en: 'The screen saver was invoked.',
+    ja: 'スクリーンセーバーが起動されました。',
+  },
+  4803: {
+    en: 'The screen saver was dismissed.',
+    ja: 'スクリーンセーバーが終了されました。',
+  },
+  // Audit log
+  1100: {
+    en: 'The event logging service has shut down.',
+    ja: 'イベントログサービスがシャットダウンしました。',
+  },
+  1102: {
+    en: 'The audit log was cleared.',
+    ja: '監査ログがクリアされました。',
+  },
+  1104: {
+    en: 'The security log is now full.',
+    ja: 'セキュリティログがいっぱいになりました。',
+  },
+  1105: {
+    en: 'Event log automatic backup.',
+    ja: 'イベントログの自動バックアップが実行されました。',
+  },
+  1108: {
+    en: 'The event logging service encountered an error while processing an incoming event.',
+    ja: 'イベントログサービスが受信イベントの処理中にエラーを検出しました。',
+  },
+};
 
-export function getEventDescription(eventId: number): string {
-  const tab = TABS.find(t => t.eventId === eventId);
-  return tab?.description ?? `Event ID ${eventId}`;
+export function getEventInfo(eventId: number, lang: 'ja' | 'en'): string | null {
+  return EVENT_INFO[eventId]?.[lang] ?? null;
 }
 
-export function isKnownEventId(eventId: number): boolean {
-  return KNOWN_EVENT_IDS.has(eventId);
+export function getEventDescription(eventId: number): string {
+  return getEventDesc(eventId) ?? EVENT_INFO[eventId]?.en ?? `Event ID ${eventId}`;
 }
 
 const LOGON_TYPES_JA: Record<number, string> = {
@@ -267,3 +317,5 @@ export function getLevelLabel(level: number): string {
     default: return `Lv${level}`;
   }
 }
+
+export { resolveWindowsMsgIds } from './windowsMsgIds';

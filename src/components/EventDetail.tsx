@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
-import { getLevelLabel, getLogonTypeLabel, getFailureReasonLabel, getStatusCodeLabel, getKerberosStatusLabel } from '../utils/eventDefinitions';
+import { getLevelLabel, getLogonTypeLabel, getFailureReasonLabel, getStatusCodeLabel, getKerberosStatusLabel, getEventInfo, resolveWindowsMsgIds } from '../utils/eventDefinitions';
+import { getEventDesc } from '../utils/securityCategories';
+import { formatTime } from '../utils/formatTime';
 import type { NormalizedEvent } from '../types/events';
 
 interface Props {
@@ -17,14 +19,6 @@ export function EventDetail({ event, onClose, lang }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-
-  function formatTime(iso: string): string {
-    try {
-      return new Date(iso).toLocaleString('ja-JP', { hour12: false });
-    } catch {
-      return iso;
-    }
-  }
 
   // Flatten event data for display
   const raw = event.raw as Record<string, unknown>;
@@ -54,7 +48,7 @@ export function EventDetail({ event, onClose, lang }: Props) {
             ? getKerberosStatusLabel(String(v ?? ''), lang)
             : getStatusCodeLabel(String(v ?? ''), lang);
         } else {
-          display = String(v ?? '—');
+          display = resolveWindowsMsgIds(String(v ?? '—'));
         }
         rows.push([k, display]);
       }
@@ -85,12 +79,12 @@ export function EventDetail({ event, onClose, lang }: Props) {
                   <tr><td>{lang === 'ja' ? 'レベル' : 'Level'}</td><td><span className={`level level-${event.level}`}>{getLevelLabel(event.level)}</span></td></tr>
                   <tr><td>{lang === 'ja' ? 'コンピュータ' : 'Computer'}</td><td>{event.computer}</td></tr>
                   <tr><td>{lang === 'ja' ? 'ユーザー' : 'User'}</td><td>{event.user || '—'}</td></tr>
-                  <tr><td>{lang === 'ja' ? '説明' : 'Description'}</td><td>{event.description}</td></tr>
+                  <tr><td>{lang === 'ja' ? '説明' : 'Description'}</td><td>{getEventDesc(event.eventId, lang) ?? event.description}</td></tr>
                 </tbody>
               </table>
             </section>
 
-            {eventRows.length > 0 && (
+            {eventRows.length > 0 ? (
               <section className="detail-section">
                 <h3>{lang === 'ja' ? 'イベントデータ' : 'Event Data'}</h3>
                 <table className="detail-table">
@@ -104,12 +98,21 @@ export function EventDetail({ event, onClose, lang }: Props) {
                   </tbody>
                 </table>
               </section>
-            )}
+            ) : getEventInfo(event.eventId, lang) ? (
+              <section className="detail-section">
+                <h3>{lang === 'ja' ? 'イベントデータ' : 'Event Data'}</h3>
+                <p className="detail-no-data">{getEventInfo(event.eventId, lang)}</p>
+              </section>
+            ) : null}
           </div>
 
           <section className="detail-section">
             <h3>RAW JSON</h3>
-            <pre className="detail-json">{JSON.stringify(raw, null, 2)}</pre>
+            <pre className="detail-json">{(() => {
+              const json = JSON.stringify(raw, null, 2);
+              const MAX = 500_000;
+              return json.length > MAX ? json.slice(0, MAX) + '\n\n... (表示を省略しました)' : json;
+            })()}</pre>
           </section>
         </div>
       </div>

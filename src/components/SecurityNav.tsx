@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { SECURITY_CATEGORIES, getCategoryEventIds, getSubcategoryEventIds, getUniqueSubcategoryEvents } from '../utils/securityCategories';
+import { SECURITY_CATEGORIES, getCategoryEventIds, getSubcategoryEventIds, getUniqueSubcategoryEvents, getEventLabel } from '../utils/securityCategories';
 import type { NormalizedEvent } from '../types/events';
 
 interface Props {
@@ -116,7 +116,12 @@ export function SecurityNav({
                 title={evtDef.desc}
                 onClick={() => onEventIdChange(evtDef.id)}
               >
-                <span className="snav-tab__label">{evtDef.id}</span>
+                <span className="snav-tab__label">
+                  {evtDef.id}
+                  {getEventLabel(evtDef.id) && (
+                    <span className="snav-tab__evt-label">{getEventLabel(evtDef.id)}</span>
+                  )}
+                </span>
                 <span className="snav-tab__count">{count.toLocaleString()}</span>
               </button>
             );

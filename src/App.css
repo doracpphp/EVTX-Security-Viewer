@@ -301,6 +301,17 @@
   font-weight: 500;
 }
 
+.snav-tab__evt-label {
+  display: block;
+  font-size: 0.72em;
+  font-weight: 400;
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .snav-tab__count {
   font-size: 0.7em;
   opacity: 0.85;
@@ -616,6 +627,13 @@
   color: var(--text-muted);
   width: 180px;
   white-space: nowrap;
+}
+
+.detail-no-data {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  padding: 6px 8px;
 }
 
 .detail-table td:last-child {

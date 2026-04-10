@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { getLevelLabel, getLogonTypeLabel } from '../utils/eventDefinitions';
+import { formatTime } from '../utils/formatTime';
 import type { NormalizedEvent } from '../types/events';
 
 const ROW_HEIGHT = 36;
@@ -21,15 +22,6 @@ export function EventTable({ events, onRowClick, showLogonCols = false }: Props)
     estimateSize: () => ROW_HEIGHT,
     overscan: 20,
   });
-
-  function formatTime(iso: string): string {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString('ja-JP', { hour12: false });
-    } catch {
-      return iso;
-    }
-  }
 
   if (events.length === 0) {
     return (

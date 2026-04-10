@@ -12,28 +12,6 @@ export interface NormalizedEvent {
   raw: Record<string, unknown>;
 }
 
-export type TabId =
-  | 'all'
-  | '4624'
-  | '4625'
-  | '4634'
-  | '4648'
-  | '4672'
-  | '4688'
-  | '4698'
-  | '4720'
-  | '4724'
-  | '4740'
-  | '4776'
-  | '7045'
-  | 'other';
-
-export interface TabDefinition {
-  id: TabId;
-  label: string;
-  eventId?: number;
-  description: string;
-}
 
 export type WorkerMessage =
   | { type: 'parse'; file: File }

@@ -102,23 +102,23 @@ export default function App() {
   const showLogonCols = selectedEventId === 4624 || selectedEventId === 4625;
   const showFailureChart = selectedEventId === 4625;
 
-  function handleCategoryChange(category: string) {
+  const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category);
     setSelectedSubcategory(null);
     setSelectedEventId(null);
     setShowChart(true);
-  }
+  }, []);
 
-  function handleSubcategoryChange(subcategory: string | null) {
+  const handleSubcategoryChange = useCallback((subcategory: string | null) => {
     setSelectedSubcategory(subcategory);
     setSelectedEventId(null);
     setShowChart(true);
-  }
+  }, []);
 
-  function handleEventIdChange(eventId: number | null) {
+  const handleEventIdChange = useCallback((eventId: number | null) => {
     setSelectedEventId(eventId);
     setShowChart(true);
-  }
+  }, []);
 
   function renderControls() {
     return (
