@@ -1,16 +1,20 @@
 import { useEffect } from 'react';
 import { getLevelLabel, getLogonTypeLabel, getFailureReasonLabel, getStatusCodeLabel, getKerberosStatusLabel, getEventInfo, resolveWindowsMsgIds } from '../utils/eventDefinitions';
 import { getEventDesc } from '../utils/securityCategories';
-import { formatTime } from '../utils/formatTime';
+import { formatTime, timeZoneLabel } from '../utils/formatTime';
+import { messages, type Lang } from '../utils/i18n';
 import type { NormalizedEvent } from '../types/events';
 
 interface Props {
   event: NormalizedEvent;
   onClose: () => void;
-  lang: 'ja' | 'en';
+  lang: Lang;
+  utc: boolean;
 }
 
-export function EventDetail({ event, onClose, lang }: Props) {
+export function EventDetail({ event, onClose, lang, utc }: Props) {
+  const t = messages(lang);
+
   // Close on Escape key
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -24,7 +28,20 @@ export function EventDetail({ event, onClose, lang }: Props) {
   const raw = event.raw as Record<string, unknown>;
   const eventData = (raw['EventData'] ?? raw['UserData'] ?? {}) as Record<string, unknown>;
 
-  // Flatten one level: if a value is a nested object, expand its entries directly
+  function formatValue(k: string, v: unknown): string {
+    if (v == null) return '—';
+    if (typeof v === 'object') return JSON.stringify(v);
+    if (k === 'LogonType') return getLogonTypeLabel(Number(v), lang);
+    if (k === 'FailureReason') return getFailureReasonLabel(String(v), lang);
+    if (k === 'Status' || k === 'SubStatus') {
+      return event.eventId === 4771
+        ? getKerberosStatusLabel(String(v), lang)
+        : getStatusCodeLabel(String(v), lang);
+    }
+    return resolveWindowsMsgIds(String(v));
+  }
+
+  // Flatten one level: if a value is a nested object (e.g. UserData), expand its entries directly
   function flattenRows(data: Record<string, unknown>): Array<[string, string]> {
     const rows: Array<[string, string]> = [];
     for (const [k, v] of Object.entries(data)) {
@@ -34,23 +51,11 @@ export function EventDetail({ event, onClose, lang }: Props) {
           rows.push([k, '—']);
         } else {
           for (const [nk, nv] of nested) {
-            rows.push([nk, String(nv ?? '—')]);
+            rows.push([nk, formatValue(nk, nv)]);
           }
         }
       } else {
-        let display: string;
-        if (k === 'LogonType') {
-          display = getLogonTypeLabel(Number(v), lang);
-        } else if (k === 'FailureReason') {
-          display = getFailureReasonLabel(String(v ?? ''), lang);
-        } else if (k === 'Status' || k === 'SubStatus') {
-          display = event.eventId === 4771
-            ? getKerberosStatusLabel(String(v ?? ''), lang)
-            : getStatusCodeLabel(String(v ?? ''), lang);
-        } else {
-          display = resolveWindowsMsgIds(String(v ?? '—'));
-        }
-        rows.push([k, display]);
+        rows.push([k, formatValue(k, v)]);
       }
     }
     return rows;
@@ -59,13 +64,19 @@ export function EventDetail({ event, onClose, lang }: Props) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-detail-title"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2 className="modal-title">
-            イベント詳細 &nbsp;
+          <h2 className="modal-title" id="event-detail-title">
+            {t.eventDetail} &nbsp;
             <span className="modal-event-id">ID: {event.eventId}</span>
           </h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose} aria-label={t.close} autoFocus>✕</button>
         </div>
 
         <div className="modal-body">
@@ -74,9 +85,10 @@ export function EventDetail({ event, onClose, lang }: Props) {
               <h3>{lang === 'ja' ? 'システム情報' : 'System Info'}</h3>
               <table className="detail-table">
                 <tbody>
-                  <tr><td>{lang === 'ja' ? '日時' : 'Time'}</td><td>{formatTime(event.timestamp)}</td></tr>
+                  <tr><td>{t.colTime}</td><td>{formatTime(event.timestamp, utc)} ({timeZoneLabel(utc)})</td></tr>
+                  <tr><td>{lang === 'ja' ? 'レコードID' : 'Record ID'}</td><td>{event.id}</td></tr>
                   <tr><td>{lang === 'ja' ? 'イベントID' : 'Event ID'}</td><td>{event.eventId}</td></tr>
-                  <tr><td>{lang === 'ja' ? 'レベル' : 'Level'}</td><td><span className={`level level-${event.level}`}>{getLevelLabel(event.level)}</span></td></tr>
+                  <tr><td>{lang === 'ja' ? 'レベル' : 'Level'}</td><td><span className={`level level-${event.level}`}>{getLevelLabel(event.level, lang)}</span></td></tr>
                   <tr><td>{lang === 'ja' ? 'コンピュータ' : 'Computer'}</td><td>{event.computer}</td></tr>
                   <tr><td>{lang === 'ja' ? 'ユーザー' : 'User'}</td><td>{event.user || '—'}</td></tr>
                   <tr><td>{lang === 'ja' ? '説明' : 'Description'}</td><td>{getEventDesc(event.eventId, lang) ?? event.description}</td></tr>
@@ -111,7 +123,7 @@ export function EventDetail({ event, onClose, lang }: Props) {
             <pre className="detail-json">{(() => {
               const json = JSON.stringify(raw, null, 2);
               const MAX = 500_000;
-              return json.length > MAX ? json.slice(0, MAX) + '\n\n... (表示を省略しました)' : json;
+              return json.length > MAX ? json.slice(0, MAX) + '\n\n' + t.truncated : json;
             })()}</pre>
           </section>
         </div>

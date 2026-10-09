@@ -306,16 +306,11 @@ export function getKerberosStatusLabel(value: string, lang: 'ja' | 'en' = 'en'):
   return label ? `${key} — ${label}` : value;
 }
 
-export function getLevelLabel(level: number): string {
-  switch (level) {
-    case 0: return '情報';
-    case 1: return '重大';
-    case 2: return 'エラー';
-    case 3: return '警告';
-    case 4: return '情報';
-    case 5: return '詳細';
-    default: return `Lv${level}`;
-  }
+const LEVEL_LABELS_JA = ['情報', '重大', 'エラー', '警告', '情報', '詳細'];
+const LEVEL_LABELS_EN = ['Info', 'Critical', 'Error', 'Warning', 'Info', 'Verbose'];
+
+export function getLevelLabel(level: number, lang: 'ja' | 'en' = 'ja'): string {
+  return (lang === 'ja' ? LEVEL_LABELS_JA : LEVEL_LABELS_EN)[level] ?? `Lv${level}`;
 }
 
 export { resolveWindowsMsgIds } from './windowsMsgIds';

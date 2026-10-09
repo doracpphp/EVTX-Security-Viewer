@@ -3,7 +3,6 @@
  * Reference: https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-identifiers
  */
 const SYSTEM_SIDS = new Set([
-  'S-1-0-0',   // Nobody
   'S-1-5-1',   // Dialup
   'S-1-5-2',   // Network
   'S-1-5-3',   // Batch
@@ -34,15 +33,30 @@ const SYSTEM_SID_PREFIXES = [
 ];
 
 /**
+ * NULL SID. Windows writes it when no account could be resolved — e.g. every
+ * 4625 (failed logon) has TargetUserSid S-1-0-0 — so it says nothing about
+ * whether the account is a system account.
+ */
+const NULL_SID = 'S-1-0-0';
+
+/** Built-in account names, used when no usable SID is available. */
+const SYSTEM_USER_NAMES = new Set(['SYSTEM', 'LOCAL SERVICE', 'NETWORK SERVICE', 'ANONYMOUS LOGON']);
+const SYSTEM_USER_NAME_PREFIXES = ['DWM-', 'UMFD-'];
+
+/**
  * Returns true if the given SID belongs to a Windows built-in / system account.
  * Machine accounts (username ending with $) are also treated as system users.
  */
 export function classifyIsSystemUser(sid: string, username: string): boolean {
-  if (sid && (SYSTEM_SIDS.has(sid) || SYSTEM_SID_PREFIXES.some(p => sid.startsWith(p)))) {
-    return true;
+  const name = username.split('\\').pop() ?? username;
+  if (sid && sid !== NULL_SID) {
+    if (SYSTEM_SIDS.has(sid) || SYSTEM_SID_PREFIXES.some(p => sid.startsWith(p))) return true;
+  } else {
+    const upper = name.toUpperCase();
+    if (SYSTEM_USER_NAMES.has(upper) || SYSTEM_USER_NAME_PREFIXES.some(p => upper.startsWith(p))) {
+      return true;
+    }
   }
   // Machine accounts: computer accounts end with '$'
-  const name = username.split('\\').pop() ?? username;
-  if (name.endsWith('$')) return true;
-  return false;
+  return name.endsWith('$');
 }

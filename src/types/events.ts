@@ -17,7 +17,7 @@ export type WorkerMessage =
   | { type: 'parse'; file: File }
 
 export type WorkerResponse =
-  | { type: 'progress'; processed: number; total: number }
+  | { type: 'progress'; processed: number; total: number }  // bytes read / file size
   | { type: 'events'; events: NormalizedEvent[] }
-  | { type: 'done' }
+  | { type: 'done'; skippedChunks: number }
   | { type: 'error'; message: string }

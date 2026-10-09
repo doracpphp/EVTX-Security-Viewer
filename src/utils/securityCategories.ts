@@ -476,9 +476,13 @@ export const SECURITY_CATEGORIES: SecurityCategory[] = [
         { id: 4780, desc: 'The ACL was set on accounts which are members of administrators groups' },
         { id: 4781, desc: 'The name of an account was changed' },
         { id: 4794, desc: 'An attempt was made to set the Directory Services Restore Mode administrator password' },
+        { id: 4797, desc: 'An attempt was made to query the existence of a blank password for an account' },
         { id: 4798, desc: "A user's local group membership was enumerated" },
         { id: 5376, desc: 'Credential Manager credentials were backed up' },
         { id: 5377, desc: 'Credential Manager credentials were restored from a backup' },
+        { id: 5379, desc: 'Credential Manager credentials were read' },
+        { id: 5381, desc: 'Vault credentials were read' },
+        { id: 5382, desc: 'Vault credentials were read' },
       ]},
       { name: 'コンピューター アカウント管理', nameEn: 'Computer Account Management', events: [
         { id: 4741, desc: 'A computer account was created' },
@@ -640,6 +644,9 @@ export function getCategoryEventIds(categoryName: string): Set<number> {
   return CATEGORY_EVENT_IDS.get(categoryName) ?? new Set();
 }
 
+// Pseudo-category for event IDs that are not in SECURITY_CATEGORIES
+export const UNCATEGORIZED = '__uncategorized__';
+
 export function getEventLabel(eventId: number): string | null {
   return EVENT_LABEL_MAP.get(eventId) ?? null;
 }
@@ -745,6 +752,10 @@ const EVENT_DESCS_JA: Record<number, string> = {
   4740: 'ユーザー アカウントがロックアウトされました。',
   4767: 'ユーザー アカウントのロックが解除されました。',
   4781: 'アカウントの名前が変更されました。',
+  4797: 'アカウントの空白のパスワードの存在を照会しようとしました。',
+  4798: 'ユーザーのローカル グループ メンバーシップが列挙されました。',
+  5381: 'コンテナーの資格情報が読み取られました。',
+  5382: 'コンテナーの資格情報が読み取られました。',
   4741: 'コンピューター アカウントが作成されました。',
   4742: 'コンピューター アカウントが変更されました。',
   4743: 'コンピューター アカウントが削除されました。',

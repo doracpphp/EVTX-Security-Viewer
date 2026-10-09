@@ -1,25 +1,25 @@
 import React, { useRef, useState } from 'react';
+import { messages, type Lang } from '../utils/i18n';
 
 interface Props {
   onFile: (file: File) => void;
   disabled?: boolean;
+  lang: Lang;
 }
 
-export function FileUpload({ onFile, disabled }: Props) {
+export function FileUpload({ onFile, disabled, lang }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const t = messages(lang);
 
   function handleFile(file: File | undefined) {
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.evtx')) {
-      alert('EVTXファイルを選択してください。');
-      return;
-    }
-    onFile(file);
+    if (file) onFile(file);
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
+    // The app also accepts drops anywhere on the page; don't open the file twice.
+    e.stopPropagation();
     setDragging(false);
     handleFile(e.dataTransfer.files[0]);
   }
@@ -29,7 +29,9 @@ export function FileUpload({ onFile, disabled }: Props) {
     setDragging(true);
   }
 
-  function onDragLeave() {
+  function onDragLeave(e: React.DragEvent) {
+    // dragleave also fires when moving onto a child element
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setDragging(false);
   }
 
@@ -38,13 +40,25 @@ export function FileUpload({ onFile, disabled }: Props) {
     e.target.value = '';
   }
 
+  function openPicker() {
+    if (!disabled) inputRef.current?.click();
+  }
+
   return (
     <div
       className={`file-upload${dragging ? ' file-upload--drag' : ''}${disabled ? ' file-upload--disabled' : ''}`}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
       onDrop={onDrop}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
-      onClick={() => !disabled && inputRef.current?.click()}
+      onClick={openPicker}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openPicker();
+        }
+      }}
     >
       <input
         ref={inputRef}
@@ -55,10 +69,8 @@ export function FileUpload({ onFile, disabled }: Props) {
         disabled={disabled}
       />
       <div className="file-upload__icon">📂</div>
-      <div className="file-upload__text">
-        EVTXファイルをドロップ、またはクリックして選択
-      </div>
-      <div className="file-upload__hint">.evtx ファイルのみ対応</div>
+      <div className="file-upload__text">{t.uploadText}</div>
+      <div className="file-upload__hint">{t.uploadHint}</div>
     </div>
   );
 }
