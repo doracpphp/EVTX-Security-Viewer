@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { ChartEntry } from '../utils/chartUtils';
+import { messages, type Lang } from '../utils/i18n';
 
 const COLORS = [
   '#f85149', '#ff7b72', '#ffa657', '#e3b341',
@@ -11,14 +12,16 @@ interface Props {
   title: string;
   total: number;
   entries: ChartEntry[];
+  lang: Lang;
 }
 
-export function PieChartCard({ title, total, entries }: Props) {
+export function PieChartCard({ title, total, entries, lang }: Props) {
+  const t = messages(lang);
   return (
     <div className="pie-card">
       <div className="pie-card__header">
         <span className="pie-card__title">{title}</span>
-        <span className="pie-card__total">{total.toLocaleString()} 件</span>
+        <span className="pie-card__total">{t.count(total)}</span>
       </div>
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
@@ -30,10 +33,6 @@ export function PieChartCard({ title, total, entries }: Props) {
             outerRadius={90}
             paddingAngle={2}
             dataKey="value"
-            label={({ name, percent }) =>
-              `${name} (${((percent ?? 0) * 100).toFixed(1)}%)`
-            }
-            labelLine={false}
           >
             {entries.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -41,7 +40,7 @@ export function PieChartCard({ title, total, entries }: Props) {
           </Pie>
           <Tooltip
             formatter={(value: number | undefined) => [
-              `${(value ?? 0).toLocaleString()} 件 (${(((value ?? 0) / total) * 100).toFixed(1)}%)`,
+              `${t.count(value ?? 0)} (${(((value ?? 0) / total) * 100).toFixed(1)}%)`,
             ]}
             contentStyle={{
               background: 'var(--bg-2)',
@@ -54,8 +53,15 @@ export function PieChartCard({ title, total, entries }: Props) {
           <Legend
             iconType="circle"
             iconSize={8}
-            formatter={(value) => (
-              <span style={{ color: 'var(--text)', fontSize: '0.78rem' }}>{value}</span>
+            // Percentages live in the legend: slice labels with long user names / IPs
+            // get clipped by the card and overlap the legend.
+            formatter={(value, _entry, i) => (
+              <span style={{ color: 'var(--text)', fontSize: '0.78rem' }}>
+                {value}
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {' '}({(((entries[i]?.value ?? 0) / total) * 100).toFixed(1)}%)
+                </span>
+              </span>
             )}
           />
         </PieChart>

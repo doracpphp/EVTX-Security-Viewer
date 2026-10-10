@@ -1,23 +1,26 @@
 import { useMemo } from 'react';
 import { PieChartCard } from './PieChartCard';
 import { buildEntries } from '../utils/chartUtils';
+import { messages, type Lang } from '../utils/i18n';
 import type { NormalizedEvent } from '../types/events';
 
 interface Props {
   events: NormalizedEvent[]; // already filtered to 4625
+  lang: Lang;
 }
 
-export function FailureChart({ events }: Props) {
+export function FailureChart({ events, lang }: Props) {
   const total = events.length;
+  const t = messages(lang);
 
   const userEntries = useMemo(
-    () => buildEntries(events.map(ev => ev.user)),
-    [events],
+    () => buildEntries(events.map(ev => ev.user), t.unknown, t.other),
+    [events, t],
   );
 
   const ipEntries = useMemo(
-    () => buildEntries(events.map(ev => ev.ipAddress ?? ''), '(不明/ローカル)'),
-    [events],
+    () => buildEntries(events.map(ev => ev.ipAddress ?? ''), t.unknownIp, t.other),
+    [events, t],
   );
 
   if (total === 0) return null;
@@ -25,14 +28,16 @@ export function FailureChart({ events }: Props) {
   return (
     <div className="failure-charts">
       <PieChartCard
-        title="ターゲットユーザー別"
+        title={t.byTargetUser}
         total={total}
         entries={userEntries}
+        lang={lang}
       />
       <PieChartCard
-        title="IPアドレス別"
+        title={t.byIp}
         total={total}
         entries={ipEntries}
+        lang={lang}
       />
     </div>
   );

@@ -8,6 +8,7 @@ export interface ChartEntry {
 export function buildEntries(
   values: string[],
   fallback = '(不明)',
+  otherLabel = 'その他',
 ): ChartEntry[] {
   const counts = new Map<string, number>();
   for (const v of values) {
@@ -22,6 +23,6 @@ export function buildEntries(
   const otherTotal = sorted.slice(MAX_SLICES - 1).reduce((s, [, v]) => s + v, 0);
   return [
     ...top.map(([name, value]) => ({ name, value })),
-    { name: 'その他', value: otherTotal },
+    { name: otherLabel, value: otherTotal },
   ];
 }

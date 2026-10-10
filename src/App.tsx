@@ -1,15 +1,23 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useDeferredValue } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ParseProgress } from './components/ParseProgress';
 import { SecurityNav } from './components/SecurityNav';
 import { EventTable } from './components/EventTable';
 import { EventDetail } from './components/EventDetail';
 import { FailureChart } from './components/FailureChart';
-import { getCategoryEventIds, getSubcategoryEventIds } from './utils/securityCategories';
+import { HelpDialog } from './components/HelpDialog';
+import { ALL_KNOWN_EVENT_IDS, UNCATEGORIZED, getCategoryEventIds, getSubcategoryEventIds } from './utils/securityCategories';
+import { matchesSearch } from './utils/eventSearch';
+import { buildCsv, downloadCsv } from './utils/csvExport';
+import { detectLang, saveLang, messages, type Lang } from './utils/i18n';
 import type { NormalizedEvent, WorkerResponse } from './types/events';
 import './App.css';
 
 type AppState = 'idle' | 'parsing' | 'done' | 'error';
+
+function isEvtxFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith('.evtx');
+}
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('idle');
@@ -21,25 +29,45 @@ export default function App() {
   const [progress, setProgress] = useState({ processed: 0, total: 0 });
   const [fileName, setFileName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [skippedChunks, setSkippedChunks] = useState(0);
   const [showChart, setShowChart] = useState(true);
   const [hideSystemUsers, setHideSystemUsers] = useState(false);
-  const [lang, setLang] = useState<'ja' | 'en'>('ja');
+  const [search, setSearch] = useState('');
+  const [utc, setUtc] = useState(false);
+  const [lang, setLang] = useState<Lang>(detectLang);
+  const [showHelp, setShowHelp] = useState(() => {
+    try {
+      return !localStorage.getItem('evtx-help-seen');
+    } catch {
+      return true;
+    }
+  });
   const workerRef = useRef<Worker | null>(null);
   const collectedRef = useRef<NormalizedEvent[]>([]);
+  const t = messages(lang);
+
+  // Searching scans every event's data, so let typing stay responsive
+  const deferredSearch = useDeferredValue(search);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const handleFile = useCallback((file: File) => {
     workerRef.current?.terminate();
     collectedRef.current = [];
     setEvents([]);
-    setProgress({ processed: 0, total: 0 });
+    setProgress({ processed: 0, total: file.size });
     setSelectedCategory('all');
     setSelectedSubcategory(null);
     setSelectedEventId(null);
     setSelectedEvent(null);
     setErrorMsg('');
+    setSkippedChunks(0);
     setFileName(file.name);
     setShowChart(true);
     setHideSystemUsers(false);
+    setSearch('');
     setAppState('parsing');
 
     const worker = new Worker(
@@ -55,11 +83,13 @@ export default function App() {
           setProgress({ processed: msg.processed, total: msg.total });
           break;
         case 'events':
-          collectedRef.current.push(...msg.events);
-          setEvents([...collectedRef.current]);
+          // push(...arr) can overflow the call stack for large batches
+          for (const ev of msg.events) collectedRef.current.push(ev);
+          setEvents(collectedRef.current.slice());
           break;
         case 'done':
-          setEvents([...collectedRef.current]);
+          setEvents(collectedRef.current.slice());
+          setSkippedChunks(msg.skippedChunks);
           setAppState('done');
           worker.terminate();
           break;
@@ -74,73 +104,159 @@ export default function App() {
     worker.onerror = (err) => {
       setErrorMsg(err.message);
       setAppState('error');
+      worker.terminate();
     };
 
     worker.postMessage({ type: 'parse', file });
   }, []);
 
-  const filteredEvents = useMemo(() => {
-    let result = events;
-    if (selectedEventId !== null) {
-      result = result.filter(e => e.eventId === selectedEventId);
-    } else if (selectedSubcategory !== null) {
-      const ids = getSubcategoryEventIds(selectedCategory, selectedSubcategory);
-      result = result.filter(e => ids.has(e.eventId));
-    } else if (selectedCategory !== 'all') {
-      const ids = getCategoryEventIds(selectedCategory);
-      result = result.filter(e => ids.has(e.eventId));
+  const openFile = useCallback((file: File) => {
+    if (!isEvtxFile(file)) {
+      alert(messages(lang).notEvtx);
+      return;
     }
-    if (hideSystemUsers) result = result.filter(e => !e.isSystemUser);
-    return result;
-  }, [events, selectedCategory, selectedSubcategory, selectedEventId, hideSystemUsers]);
+    handleFile(file);
+  }, [handleFile, lang]);
+
+  // Accept a dropped file anywhere on the page. Without this, dropping a file
+  // outside the upload area (e.g. while viewing results) makes the browser
+  // navigate away to the file and the loaded log is lost.
+  useEffect(() => {
+    function onDragOver(e: DragEvent) {
+      if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+    }
+    function onDrop(e: DragEvent) {
+      const file = e.dataTransfer?.files[0];
+      if (!file) return;
+      e.preventDefault();
+      openFile(file);
+    }
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [openFile]);
+
+  // Events matching the navigation selection (before user/search filters)
+  const navEvents = useMemo(() => {
+    if (selectedEventId !== null) return events.filter(e => e.eventId === selectedEventId);
+    if (selectedCategory === UNCATEGORIZED) return events.filter(e => !ALL_KNOWN_EVENT_IDS.has(e.eventId));
+    const ids = selectedSubcategory !== null
+      ? getSubcategoryEventIds(selectedCategory, selectedSubcategory)
+      : selectedCategory !== 'all' ? getCategoryEventIds(selectedCategory) : null;
+    return ids ? events.filter(e => ids.has(e.eventId)) : events;
+  }, [events, selectedCategory, selectedSubcategory, selectedEventId]);
 
   const systemUserCount = useMemo(
-    () => events.filter(e => e.isSystemUser).length,
-    [events],
+    () => navEvents.reduce((n, e) => n + (e.isSystemUser ? 1 : 0), 0),
+    [navEvents],
   );
+
+  const query = deferredSearch.trim().toLowerCase();
+  const filteredEvents = useMemo(() => {
+    let result = navEvents;
+    if (hideSystemUsers) result = result.filter(e => !e.isSystemUser);
+    if (query) result = result.filter(e => matchesSearch(e, query, lang));
+    return result;
+  }, [navEvents, hideSystemUsers, query, lang]);
 
   const showLogonCols = selectedEventId === 4624 || selectedEventId === 4625;
   const showFailureChart = selectedEventId === 4625;
 
-  function handleCategoryChange(category: string) {
+  const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category);
     setSelectedSubcategory(null);
     setSelectedEventId(null);
     setShowChart(true);
-  }
+  }, []);
 
-  function handleSubcategoryChange(subcategory: string | null) {
+  const handleSubcategoryChange = useCallback((subcategory: string | null) => {
     setSelectedSubcategory(subcategory);
     setSelectedEventId(null);
     setShowChart(true);
-  }
+  }, []);
 
-  function handleEventIdChange(eventId: number | null) {
+  const handleEventIdChange = useCallback((eventId: number | null) => {
     setSelectedEventId(eventId);
     setShowChart(true);
+  }, []);
+
+  const closeDetail = useCallback(() => setSelectedEvent(null), []);
+  const closeHelp = useCallback(() => setShowHelp(false), []);
+
+  function toggleLang() {
+    const next: Lang = lang === 'ja' ? 'en' : 'ja';
+    setLang(next);
+    saveLang(next);
+  }
+
+  function handleExportCsv() {
+    const base = fileName.replace(/\.evtx$/i, '') || 'events';
+    const suffix = selectedEventId !== null ? `_${selectedEventId}` : '';
+    downloadCsv(buildCsv(filteredEvents, lang, utc), `${base}${suffix}.csv`);
   }
 
   function renderControls() {
     return (
       <>
         <div className="filter-bar">
-          <label className="filter-checkbox">
+          <div className="filter-bar__group">
             <input
-              type="checkbox"
-              checked={hideSystemUsers}
-              onChange={e => setHideSystemUsers(e.target.checked)}
+              type="search"
+              className="filter-search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t.searchPlaceholder}
+              aria-label={t.searchPlaceholder}
             />
-            システムユーザーを非表示
-            <span className="filter-checkbox__count">({systemUserCount.toLocaleString()} 件)</span>
-          </label>
-          {showFailureChart && (
-            <button className="btn-toggle-table" onClick={() => setShowChart(v => !v)}>
-              {showChart ? '▲ グラフを隠す' : '▼ グラフを表示'}
+            <label className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={hideSystemUsers}
+                onChange={e => setHideSystemUsers(e.target.checked)}
+              />
+              {t.hideSystem}
+              <span className="filter-checkbox__count">({t.count(systemUserCount)})</span>
+            </label>
+            <label className="filter-checkbox">
+              <input type="checkbox" checked={utc} onChange={e => setUtc(e.target.checked)} />
+              {t.utc}
+            </label>
+          </div>
+          <div className="filter-bar__group">
+            {showFailureChart && (
+              <button className="btn-toggle-table" onClick={() => setShowChart(v => !v)}>
+                {showChart ? t.hideChart : t.showChartBtn}
+              </button>
+            )}
+            <button
+              className="btn-toggle-table"
+              onClick={handleExportCsv}
+              disabled={filteredEvents.length === 0}
+            >
+              {t.exportCsv}
             </button>
-          )}
+          </div>
         </div>
-        {showFailureChart && showChart && <FailureChart events={filteredEvents} />}
+        {showFailureChart && showChart && <FailureChart events={filteredEvents} lang={lang} />}
       </>
+    );
+  }
+
+  function renderTable() {
+    // Remount on filter change so the list scrolls back to the top
+    const filterKey = [selectedCategory, selectedSubcategory, selectedEventId, hideSystemUsers, query].join('|');
+    return (
+      <EventTable
+        key={filterKey}
+        events={filteredEvents}
+        onRowClick={setSelectedEvent}
+        showLogonCols={showLogonCols}
+        lang={lang}
+        utc={utc}
+      />
     );
   }
 
@@ -171,12 +287,20 @@ export default function App() {
       <header className="app-header">
         <h1 className="app-title">EVTX Security Viewer</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button className="btn-lang" onClick={() => setLang(l => l === 'ja' ? 'en' : 'ja')}>
+          <button
+            className="btn-lang"
+            onClick={() => setShowHelp(true)}
+            aria-label={t.showHelp}
+            title={t.help}
+          >
+            ?
+          </button>
+          <button className="btn-lang" onClick={toggleLang}>
             {lang === 'ja' ? 'EN' : '日本語'}
           </button>
           {appState !== 'idle' && (
             <button className="btn-reset" onClick={handleReset}>
-              別のファイルを開く
+              {t.openAnother}
             </button>
           )}
         </div>
@@ -185,7 +309,7 @@ export default function App() {
       <main className="app-main">
         {appState === 'idle' && (
           <div className="app-upload-wrap">
-            <FileUpload onFile={handleFile} />
+            <FileUpload onFile={openFile} lang={lang} />
           </div>
         )}
 
@@ -196,12 +320,13 @@ export default function App() {
               total={progress.total}
               eventCount={events.length}
               fileName={fileName}
+              lang={lang}
             />
             {events.length > 0 && (
               <div className="app-streaming">
                 <SecurityNav {...navProps} />
                 {renderControls()}
-                <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={showLogonCols} />
+                {renderTable()}
               </div>
             )}
           </>
@@ -210,26 +335,52 @@ export default function App() {
         {appState === 'done' && (
           <>
             <div className="app-done-banner">
-              ✓ {fileName} — {events.length.toLocaleString()} 件読み込み完了
+              {t.loaded(fileName, events.length)}
+              {skippedChunks > 0 && (
+                <span className="app-done-banner__warn">{t.skippedChunks(skippedChunks)}</span>
+              )}
             </div>
             <SecurityNav {...navProps} />
             {renderControls()}
-            <EventTable events={filteredEvents} onRowClick={setSelectedEvent} showLogonCols={showLogonCols} />
+            {renderTable()}
           </>
         )}
 
         {appState === 'error' && (
           <div className="app-error">
-            <div className="app-error__title">パースエラー</div>
-            <div className="app-error__msg">{errorMsg}</div>
-            <button className="btn-reset" onClick={handleReset}>やり直す</button>
+            <div className="app-error__title">{t.parseError}</div>
+            <div className="app-error__msg">{errorMsg || t.workerError}</div>
+            <button className="btn-reset" onClick={handleReset}>{t.retry}</button>
           </div>
         )}
       </main>
 
+      <footer className="app-footer">
+        <a
+          className="app-footer__link"
+          href="https://frees.jp/contact/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t.contact}
+        </a>
+        <span className="app-footer__sep" aria-hidden="true">·</span>
+        <a
+          className="app-footer__link"
+          href="https://frees.booth.pm/items/8191447"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t.book}
+        </a>
+        <span className="app-footer__copy">© frees.jp</span>
+      </footer>
+
       {selectedEvent && (
-        <EventDetail event={selectedEvent} onClose={() => setSelectedEvent(null)} lang={lang} />
+        <EventDetail event={selectedEvent} onClose={closeDetail} lang={lang} utc={utc} />
       )}
+
+      {showHelp && <HelpDialog lang={lang} onClose={closeHelp} />}
     </div>
   );
 }
